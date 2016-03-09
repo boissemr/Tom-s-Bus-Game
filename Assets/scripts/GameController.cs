@@ -10,6 +10,7 @@ public class GameController : MonoBehaviour {
 	public Actions	actions;
 	public Dialogue dialogue;
 	public Inventory inventory;
+	public Fade		fade;
 	public int		totalDays,
 					startingMoney;
 
@@ -23,7 +24,7 @@ public class GameController : MonoBehaviour {
 
 		// initialize
 		day = 0;
-		beginRoute();
+		startDay(day);
 		stats.updateDayText(day);
 		inventory.addMoney(startingMoney);
 		actions.disableAll();
@@ -41,17 +42,9 @@ public class GameController : MonoBehaviour {
 		// arrive at the next stop
 		if(timeUntilNextStop <= 0) {
 
-			// at last station
+			// start the next day if this is the last station
 			if(nextStation == busRoute.stations.Count - 1) {
-				
-				// TODO: add end of day sequence
-
-				// enter a new day
-				day++;
-				stats.updateDayText(day);
-
-				// start the bus route over
-				beginRoute();
+				startDay(day + 1);
 			}
 
 			// not at last station
@@ -63,12 +56,8 @@ public class GameController : MonoBehaviour {
 
 				// let passengers on/off
 				foreach(Passenger o in roster.passengers) {
-					if(o.onStation == busRoute.stations[nextStation]) {
-						o.button.interactable = true;
-					}
-					if(o.offStation == busRoute.stations[nextStation]) {
-						o.button.interactable = false;
-					}
+					if(o.onStation == busRoute.stations[nextStation])	o.button.interactable = true;
+					if(o.offStation == busRoute.stations[nextStation])	o.button.interactable = false;
 				}
 
 				// start heading to the next station
@@ -78,13 +67,24 @@ public class GameController : MonoBehaviour {
 
 		// update stats for time change every frame
 		if(farePaid) {
-			stats.updateNextText(timeUntilNextStop, busRoute.stations[nextStation]);
+			stats.updateNextText(true, timeUntilNextStop, busRoute.stations[nextStation]);
 		} else {
-			stats.updateNextText(999, busRoute.stations[nextStation]);
+			stats.updateNextText(false, timeUntilNextStop, busRoute.stations[nextStation]);
 		}
 	}
 
-	void beginRoute() {
+	void startDay(int newDay) {
+
+		// fade to black
+		fade.fadeOut();
+
+		// TODO: don't update this stuff until click to dismiss fadeOut
+		//		because right now you can see it change before the fadeOut completes
+		//		maybe use a coroutine for this?
+
+		// enter a new day
+		day = newDay;
+		stats.updateDayText(day);
 
 		// set up so that we are at the first stop, heading to the second stop
 		timeUntilNextStop = busRoute.stations[0].timeToNextStop;
@@ -110,9 +110,6 @@ public class GameController : MonoBehaviour {
 			dialogue.nameText.text = interactingPassenger.name;
 			dialogue.currentSequence = interactingPassenger.behaviors[day].openingSequence;
 			updateDialogue();
-
-			// allow the player to end interaction
-			actions.end.interactable = true;
 		}
 	}
 
@@ -125,12 +122,21 @@ public class GameController : MonoBehaviour {
 				break;
 
 			case 1:	// yes
+
+				// move to chain sequence
+				dialogue.currentSequence = dialogue.currentSequence.yesSequence;
+				updateDialogue();
 				break;
 
 			case 2:	// no
+
+				// move to chain sequence
+				dialogue.currentSequence = dialogue.currentSequence.noSequence;
+				updateDialogue();
 				break;
 
 			case 3:	// give
+				
 				// TODO: reimplement this in a way that utilizes behaviors
 				// for now, I am too tired, so this is fine
 				if(interactingPassenger.name == "Bus Driver") {
@@ -157,14 +163,12 @@ public class GameController : MonoBehaviour {
 		dialogue.bodyText.text = dialogue.currentSequence.phrases[dialogue.phrase];
 
 		// have actions according to behavior
-		// TODO: reimplement this to use "currentPhrase" (or something) instead of openingSequence
-		// should set currentPhrase to openingSequence so we can move through sequences
 		if(dialogue.phrase >= dialogue.currentSequence.phrases.Length - 1) {
 			actions.talk.interactable = false;
 			actions.yes.interactable = dialogue.currentSequence.isQuestion;
 			actions.no.interactable = dialogue.currentSequence.isQuestion;
 			actions.give.interactable = dialogue.currentSequence.isPromptToGive;
-			actions.end.interactable = !dialogue.currentSequence.cantEnd; // TODO: why doesn't this work?
+			actions.end.interactable = !dialogue.currentSequence.cantEnd;
 		}
 
 		// allow talk option if there are more phrases

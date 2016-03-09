@@ -7,5 +7,7 @@ public class DialogueSequence : MonoBehaviour {
 	public bool		isPromptToGive,
 					isQuestion,
 					cantEnd;
-	public DialogueSequence chainSequence;
+	public DialogueSequence chainSequence,
+							yesSequence,
+							noSequence;
 }
